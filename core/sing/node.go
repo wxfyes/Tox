@@ -324,6 +324,12 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 			Transport: &t,
 			Multiplex: multiplex,
 		}
+
+		// Fix: Add h2 ALPN for Trojan gRPC to support Cloudflare
+		if n.Network == "grpc" {
+			tls.ALPN = []string{"h2"}
+		}
+
 		if c.SingOptions.FallBackConfigs != nil {
 			// fallback handling
 			fallback := c.SingOptions.FallBackConfigs.FallBack
