@@ -206,6 +206,12 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 				Host: network.Host,
 			}
 		}
+
+		// Fix: Add h2 ALPN for gRPC to support Cloudflare
+		if n.Network == "grpc" {
+			tls.ALPN = []string{"h2"}
+		}
+
 		if info.Type == "vless" {
 			in.Type = "vless"
 			in.Options = &option.VLESSInboundOptions{
