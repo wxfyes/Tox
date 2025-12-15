@@ -287,8 +287,8 @@ require (
 
 replace github.com/sagernet/sing-box v1.13.0 => github.com/wyx2685/sing-box_mod v1.13.0-alpha.5
 
-// 关键修复：只替换 Sing-box 使用的 sagernet 版 quic-go，以修复断流问题
-// 严禁替换 apernet/quic-go，否则会导致其他依赖编译失败
-replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
+// 回滚：移除手动指定的 quic-go v0.54，因为当前的 Sing-box Mod 核心尚未适配该版本。
+// 让 Sing-box 自动使用其兼容的 quic-go 版本 (v0.52)。
+// replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
 
 replace github.com/xtls/xray-core => github.com/xtls/xray-core v1.8.24
