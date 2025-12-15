@@ -228,7 +228,7 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 			if tls.Enabled && tls.Reality == nil {
 				vlessOptions.Fallback = &option.ServerOptions{
 					Server:     "127.0.0.1",
-					ServerPort: 80,
+					ServerPort: 8080,
 				}
 			}
 			in.Options = vlessOptions
