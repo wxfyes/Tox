@@ -214,14 +214,24 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 
 		if info.Type == "vless" {
 			in.Type = "vless"
-			in.Options = &option.VLESSInboundOptions{
+			// Force Fallback to 127.0.0.1:80 for default masquerade
+			vlessOptions := &option.VLESSInboundOptions{
 				ListenOptions: listen,
 				InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 					TLS: &tls,
 				},
 				Transport: &t,
 				Multiplex: multiplex,
+				Flow:      n.Flow,
 			}
+			// Only enable fallback if TLS is enabled and not Reality (Reality handles dest differently)
+			if tls.Enabled && tls.Reality == nil {
+				vlessOptions.Fallback = &option.ServerOptions{
+					Server:     "127.0.0.1",
+					ServerPort: 80,
+				}
+			}
+			in.Options = vlessOptions
 		} else {
 			in.Type = "vmess"
 			in.Options = &option.VMessInboundOptions{

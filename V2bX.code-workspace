@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Xboard"
+		},
+		{
+			"path": "../v2board"
+		}
+	],
+	"settings": {}
+}

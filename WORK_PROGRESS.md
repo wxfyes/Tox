@@ -2,11 +2,18 @@
 **日期**：2025-12-15
 
 ## 1. 核心目标达成 (Status: SUCCESS)
-*   **去肥增瘦**：彻底移除了 Xray 和 Hysteria 旧核心代码与依赖，V2bX 现转型为纯 Sing-box 驱动项目（Go 1.23 环境）。
-*   **断流修复**：
-    *   集成了您的私有仓库 `wangn9900/sing-box_mod`。
-    *   实测该版本已启用 **QUIC v0.55** (比预期的 v0.54 更新)，配合最新的 `sing-anytls v0.0.11`，拥有最强的抗拥塞和防断流能力。
-    *   完美解决了 TUIC/Hy2 与新版客户端（如 MOMclash）的兼容性问题。
+- [x] **Core Logic**:
+    - [x] Removed `xray` and `hysteria2` support from `initconfig.sh` and `V2bX.sh`.
+    - [x] Enforced `Sing-box` as the default and only core.
+    - [x] Modified `V2bX` core (Go) to support VLESS Fallback (Initially attempted in Go, then shifted to script-based Nginx deployment). `v1.1.0` released.
+- [x] **Script Enhancement**:
+    - [x] Integrated `Nginx` installation in `install.sh`.
+    - [x] Configured `Nginx` to listen on `127.0.0.1:80` as a catch-all masquerade site.
+    - [x] Synchronized logic between `initconfig.sh` (standalone wizard) and `V2bX.sh` (management script).
+    - [x] Fixed syntax errors in `initconfig.sh`.
+- [ ] **Verification**:
+    - [ ] Verify `V2bX generate` wizard flow (User currently testing).
+    - [ ] Confirm Nginx fallback works with V2bX VLESS+TLS nodes.与新版客户端（如 MOMclash）的兼容性问题。
 
 ## 2. 关键架构调整 (如何工作的)
 
