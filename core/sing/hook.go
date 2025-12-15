@@ -35,12 +35,15 @@ func (h *HookServer) RoutedConnection(_ context.Context, conn net.Conn, m adapte
 	}
 	taguuid := format.UserTag(m.Inbound, m.User)
 	ip := m.Source.Addr.String()
-	if b, r := l.CheckLimit(taguuid, ip, true, true); r {
-		conn.Close()
-		log.Error("[", m.Inbound, "] ", "Limited ", m.User, " by ip or conn")
-		return conn
-	} else if b != nil {
-		conn = rate.NewConnRateLimiter(conn, b)
+	// Skip limit check for fallback traffic (empty user)
+	if m.User != "" {
+		if b, r := l.CheckLimit(taguuid, ip, true, true); r {
+			conn.Close()
+			log.Error("[", m.Inbound, "] ", "Limited ", m.User, " by ip or conn")
+			return conn
+		} else if b != nil {
+			conn = rate.NewConnRateLimiter(conn, b)
+		}
 	}
 	if l != nil {
 		destStr := m.Destination.AddrString()
