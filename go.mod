@@ -5,12 +5,15 @@ go 1.24
 toolchain go1.24.6
 
 require (
+	// 注意：不要手动 require quic-go，让 sing-box 及其 replace 自动处理
+
 	github.com/beevik/ntp v1.4.4-0.20240716062501-06ef196b89ec
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-acme/lego/v4 v4.17.4
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/juju/ratelimit v1.0.2
 	github.com/sagernet/sing v0.7.6-0.20250815070458-d33ece7a184f
+	// Sing-box 核心
 	github.com/sagernet/sing-box v1.13.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -202,8 +205,7 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20250325023245-7a9c0f5725fb // indirect
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
-	// 使用 sagernet 前缀以匹配 replace
-	github.com/sagernet/quic-go v0.54.0 // indirect
+	github.com/sagernet/quic-go v0.52.0-beta.1 // indirect
 	github.com/sagernet/sing-mux v0.3.3 // indirect
 	github.com/sagernet/sing-quic v0.5.0 // indirect
 	github.com/sagernet/sing-shadowsocks v0.2.8 // indirect
@@ -258,9 +260,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.0 // indirect
-
-	// 如果代码里还用了 hysteria 的某些包，可能需要显式 require，但这里先不加
-
 	go.uber.org/zap v1.27.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
@@ -291,9 +290,7 @@ require (
 
 replace github.com/sagernet/sing-box v1.13.0 => github.com/wyx2685/sing-box_mod v1.13.0-alpha.5
 
+// 只替换 sagernet 分支的 quic-go，不要污染 apernet/xray 的生态
 replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
-
-// 下面这个 replace 是为了让其他引用了 apernet 版本 quic-go 的库也能用上我们的补丁版
-replace github.com/apernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
 
 replace github.com/xtls/xray-core => github.com/xtls/xray-core v1.8.24
