@@ -101,6 +101,14 @@ jobs:
     steps:
       - name: Checkout codebase
         uses: actions/checkout@v4
+        with:
+          path: '.'
+
+      - name: Checkout sing-box_mod
+        uses: actions/checkout@v4
+        with:
+          repository: wangn9900/sing-box_mod
+          path: sing-box_mod
       - name: Show workflow information
         id: get_filename
         run: |
@@ -117,11 +125,11 @@ jobs:
         run: |
           go mod download
       - name: Get release version
-        if: ${{ github.event_name == 'release' }}
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          echo "version=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_ENV
+          echo "version=${GITHUB_REF##*/}" >> $GITHUB_ENV
       - name: Get other version
-        if: ${{ github.event_name != 'release' }}
+        if: "!startsWith(github.ref, 'refs/tags/')"
         run: |
           echo "version=${{ github.sha }}" >> $GITHUB_ENV
       - name: Build V2bX
