@@ -5,15 +5,12 @@ go 1.24
 toolchain go1.24.6
 
 require (
-	// 注意：不要手动 require quic-go，让 sing-box 及其 replace 自动处理
-
 	github.com/beevik/ntp v1.4.4-0.20240716062501-06ef196b89ec
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-acme/lego/v4 v4.17.4
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/juju/ratelimit v1.0.2
 	github.com/sagernet/sing v0.7.6-0.20250815070458-d33ece7a184f
-	// Sing-box 核心
 	github.com/sagernet/sing-box v1.13.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -290,7 +287,7 @@ require (
 
 replace github.com/sagernet/sing-box v1.13.0 => github.com/wyx2685/sing-box_mod v1.13.0-alpha.5
 
-// 只替换 sagernet 分支的 quic-go，不要污染 apernet/xray 的生态
-replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
+// 暂时移除 quic-go 的手动 replace，观察依赖解析情况
+// replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
 
 replace github.com/xtls/xray-core => github.com/xtls/xray-core v1.8.24
