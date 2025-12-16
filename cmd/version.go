@@ -8,7 +8,7 @@ import (
 
 var (
 	version  = "TempVersion" //use ldflags replace
-	codename = "V2bX"
+	codename = "tox"
 	intro    = "A V2board backend based on multi core"
 )
 
