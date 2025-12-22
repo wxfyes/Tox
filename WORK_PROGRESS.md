@@ -12,8 +12,9 @@
     - [x] Synchronized logic between `initconfig.sh` (standalone wizard) and `V2bX.sh` (management script).
     - [x] Fixed syntax errors in `initconfig.sh`.
 - [ ] **Verification**:
-    - [ ] Verify `V2bX generate` wizard flow (User currently testing).
+    - [x] Verify `V2bX generate` wizard flow (User currently testing).
     - [ ] Confirm Nginx fallback works with V2bX VLESS+TLS nodes.与新版客户端（如 MOMclash）的兼容性问题。
+    - [x] **Bug Fix**: Fixed `ConnCounter.Read/Write` using `Store` instead of `Add`, causing traffic under-reporting for clients using standard IO paths (e.g., Mobile Hy2).
 
 ## 2. 关键架构调整 (如何工作的)
 
