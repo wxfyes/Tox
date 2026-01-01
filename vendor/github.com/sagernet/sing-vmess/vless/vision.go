@@ -299,20 +299,16 @@ func (c *VisionConn) padding(buffer *buf.Buffer, command byte) *buf.Buffer {
 	if buffer != nil {
 		contentLen = buffer.Len()
 	}
-	// PATCH: Gaussian-like Padding (V2bX v1.1.12)
-	// Uses Sum of Uniforms to approximate a Normal Distribution (Central Limit Theorem)
-	// Target: "Tent Curve" peaking around 1000 bytes, range 600-1400.
-	// Mimics standard TLS 1.3 Handshake size distribution (e.g., Microsoft/Azure).
-	r1, _ := rand.Int(rand.Reader, big.NewInt(400))
-	r2, _ := rand.Int(rand.Reader, big.NewInt(400))
-	variableFloor := 600 + int(r1.Int64()+r2.Int64())
-	if contentLen < variableFloor && c.isTLS {
+	if c.isTLS {
 		maxPadding := 1400 - contentLen
-		if maxPadding < 16 { maxPadding = 16 }
-		if maxPadding > 800 { maxPadding = 800 }
+		if maxPadding > 900 {
+			maxPadding = 900
+		}
+		if maxPadding < 16 {
+			maxPadding = 16
+		}
 		l, _ := rand.Int(rand.Reader, big.NewInt(int64(maxPadding)))
 		paddingLen = int(l.Int64())
-		if paddingLen < 16 { paddingLen = 16 }
 	} else {
 		l, _ := rand.Int(rand.Reader, big.NewInt(256))
 		paddingLen = int(l.Int64())
