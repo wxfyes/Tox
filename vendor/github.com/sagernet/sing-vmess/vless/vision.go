@@ -299,9 +299,13 @@ func (c *VisionConn) padding(buffer *buf.Buffer, command byte) *buf.Buffer {
 	if buffer != nil {
 		contentLen = buffer.Len()
 	}
-	// PATCH: Randomized padding for V2bX/StealthForward
-	randomBase, _ := rand.Int(rand.Reader, big.NewInt(400))
-	variableFloor := 500 + int(randomBase.Int64())
+	// PATCH: Gaussian-like Padding (V2bX v1.1.12)
+	// Uses Sum of Uniforms to approximate a Normal Distribution (Central Limit Theorem)
+	// Target: "Tent Curve" peaking around 1000 bytes, range 600-1400.
+	// Mimics standard TLS 1.3 Handshake size distribution (e.g., Microsoft/Azure).
+	r1, _ := rand.Int(rand.Reader, big.NewInt(400))
+	r2, _ := rand.Int(rand.Reader, big.NewInt(400))
+	variableFloor := 600 + int(r1.Int64()+r2.Int64())
 	if contentLen < variableFloor && c.isTLS {
 		maxPadding := 1400 - contentLen
 		if maxPadding < 16 { maxPadding = 16 }
