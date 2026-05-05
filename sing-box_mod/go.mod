@@ -144,3 +144,5 @@ require (
 )
 
 replace github.com/anytls/sing-anytls => github.com/wangn9900/sing-anytls v0.0.0-20260101122157-d972c93a8a35
+
+replace github.com/sagernet/quic-go => ../quic-go_mod

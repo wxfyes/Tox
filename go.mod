@@ -300,3 +300,5 @@ replace github.com/sagernet/sing-box v1.13.0 => ./sing-box_mod
 
 // 强制启用 v0.54 QUIC (Sing-box 专用 sagernet 分支)
 // replace github.com/sagernet/quic-go => github.com/sagernet/quic-go v0.54.0-sing-box-mod.3
+
+replace github.com/sagernet/quic-go => ./quic-go_mod
