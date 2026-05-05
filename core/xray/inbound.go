@@ -37,8 +37,11 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	case "shadowsocks":
 		err = buildShadowsocks(option, nodeInfo, in)
 		network = "tcp"
+	case "anytls":
+		err = buildAnyTls(option, nodeInfo, in)
+		network = "tcp"
 	default:
-		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks", nodeInfo.Type)
+		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks, AnyTLS", nodeInfo.Type)
 	}
 	if err != nil {
 		return nil, err
@@ -384,4 +387,17 @@ func buildTrojanFallbacks(fallbackConfigs []conf.FallBackConfigForXray) ([]*core
 		}
 	}
 	return trojanFallBacks, nil
+}
+
+func buildAnyTls(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
+	inbound.Protocol = "anytls"
+	s, err := json.Marshal(nodeInfo.AnyTls)
+	if err != nil {
+		return fmt.Errorf("marshal anytls settings error: %s", err)
+	}
+	inbound.Settings = (*json.RawMessage)(&s)
+	network := "tcp"
+	t := coreConf.TransportProtocol(network)
+	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
+	return nil
 }
