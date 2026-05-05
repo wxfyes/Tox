@@ -240,6 +240,13 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		}
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
+			// Compatibility: if host is empty, it might be SplitHTTP format
+			if inbound.StreamSetting.XHTTPSettings.Host == "" {
+				_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
+				// Sync important fields from SplitHTTP to XHTTP for core compatibility
+				inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
+				inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+			}
 		}
 		// Performance Optimization: Inject default values
 		if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
