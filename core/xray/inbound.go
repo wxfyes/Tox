@@ -236,10 +236,31 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if err != nil {
 			return fmt.Errorf("unmarshal httpupgrade settings error: %s", err)
 		}
-	case "splithttp", "xhttp":
+	case "splithttp":
 		err := json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
 		if err != nil {
+			return fmt.Errorf("unmarshal splithttp settings error: %s", err)
+		}
+	case "xhttp":
+		err := json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.XHTTPSettings)
+		if err != nil {
 			return fmt.Errorf("unmarshal xhttp settings error: %s", err)
+		}
+		// XHTTP in current Xray infra/conf is a wrapper of SplitHTTP
+		// Performance Optimization: Inject default values if not provided
+		if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
+			inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
+				Left: 10485760, Right: 10485760, From: 10485760, To: 10485760,
+			}
+		}
+		if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
+			inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
+				Left: 1, Right: 1, From: 1, To: 1,
+			}
+		}
+		// Compatibility: map "packet" to "packet-up" to avoid crash
+		if inbound.StreamSetting.XHTTPSettings.Mode == "packet" {
+			inbound.StreamSetting.XHTTPSettings.Mode = "packet-up"
 		}
 	default:
 		return errors.New("the network type is not vail")
