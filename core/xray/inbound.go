@@ -240,28 +240,30 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		}
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
-			// Compatibility: if host is empty, it might be SplitHTTP format
 			if inbound.StreamSetting.XHTTPSettings.Host == "" {
 				_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
-				// Sync important fields from SplitHTTP to XHTTP for core compatibility
-				inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
-				inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+				if inbound.StreamSetting.SplitHTTPSettings != nil {
+					inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
+					inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+				}
 			}
 		}
-		// Performance Optimization: Inject default values
-		if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
-			inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
-				Left: 10485760, Right: 10485760, From: 10485760, To: 10485760,
+		// Performance Optimization: Inject default values safely
+		if inbound.StreamSetting.XHTTPSettings != nil {
+			if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
+				inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
+					Left: 10485760, Right: 10485760, From: 10485760, To: 10485760,
+				}
 			}
-		}
-		if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
-			inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
-				Left: 1, Right: 1, From: 1, To: 1,
+			if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
+				inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
+					Left: 1, Right: 1, From: 1, To: 1,
+				}
 			}
-		}
-		// Compatibility: map "packet" to "packet-up" to avoid crash
-		if inbound.StreamSetting.XHTTPSettings.Mode == "packet" {
-			inbound.StreamSetting.XHTTPSettings.Mode = "packet-up"
+			// Compatibility: map "packet" to "packet-up"
+			if inbound.StreamSetting.XHTTPSettings.Mode == "packet" {
+				inbound.StreamSetting.XHTTPSettings.Mode = "packet-up"
+			}
 		}
 	default:
 		return errors.New("the network type is not vail")
