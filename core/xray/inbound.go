@@ -124,16 +124,9 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 		if xver == 0 {
 			xver = v.RealityConfig.Xver
 		}
-		d, err := json.Marshal(fmt.Sprintf(
-			"%s:%s",
-			dest,
-			v.TlsSettings.ServerPort))
-		if err != nil {
-			return nil, fmt.Errorf("marshal reality dest error: %s", err)
-		}
 		mtd, _ := time.ParseDuration(v.RealityConfig.MaxTimeDiff)
 		in.StreamSetting.REALITYSettings = &coreConf.REALITYConfig{
-			Dest:         d,
+			Dest:         json.RawMessage([]byte(fmt.Sprintf("\"%s:%s\"", dest, v.TlsSettings.ServerPort))),
 			Xver:         xver,
 			Show:         false,
 			ServerNames:  []string{v.TlsSettings.ServerName},
@@ -242,9 +235,11 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 			return fmt.Errorf("unmarshal splithttp settings error: %s", err)
 		}
 	case "xhttp":
-		err := json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.XHTTPSettings)
-		if err != nil {
-			return fmt.Errorf("unmarshal xhttp settings error: %s", err)
+		if len(v.NetworkSettings) > 0 {
+			_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.XHTTPSettings)
+		}
+		if inbound.StreamSetting.XHTTPSettings == nil || inbound.StreamSetting.XHTTPSettings.Host == "" {
+			_ = json.Unmarshal(nodeInfo.TransportSettings.RawMessage, &inbound.StreamSetting.XHTTPSettings)
 		}
 		// XHTTP in current Xray infra/conf is a wrapper of SplitHTTP
 		// Performance Optimization: Inject default values if not provided
