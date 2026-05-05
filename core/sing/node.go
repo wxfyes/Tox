@@ -70,12 +70,10 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 			Enabled: c.SingOptions.Multiplex.Enabled,
 			Padding: c.SingOptions.Multiplex.Padding,
 		}
-		if c.SingOptions.Multiplex.Brutal != nil {
-			multiplexOption.Brutal = &option.BrutalOptions{
-				Enabled:  c.SingOptions.Multiplex.Brutal.Enabled,
-				UpMbps:   c.SingOptions.Multiplex.Brutal.UpMbps,
-				DownMbps: c.SingOptions.Multiplex.Brutal.DownMbps,
-			}
+		multiplexOption.Brutal = &option.BrutalOptions{
+			Enabled:  c.SingOptions.Multiplex.Brutal.Enabled,
+			UpMbps:   c.SingOptions.Multiplex.Brutal.UpMbps,
+			DownMbps: c.SingOptions.Multiplex.Brutal.DownMbps,
 		}
 		multiplex = &multiplexOption
 	}
