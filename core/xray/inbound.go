@@ -236,7 +236,7 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		}
 	case "xhttp":
 		if inbound.StreamSetting.XHTTPSettings == nil {
-			inbound.StreamSetting.XHTTPSettings = &coreConf.XHTTPSettings{}
+			inbound.StreamSetting.XHTTPSettings = &coreConf.SplitHTTPConfig{}
 		}
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
