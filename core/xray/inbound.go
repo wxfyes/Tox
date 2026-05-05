@@ -153,7 +153,7 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 
 func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
 	v := nodeInfo.VAllss
-	if nodeInfo.Type == "vless" {
+	if nodeInfo.Type == "vless" || nodeInfo.Type == "xhttp" {
 		//Set vless
 		inbound.Protocol = "vless"
 		if config.XrayOptions.EnableFallback {
