@@ -61,14 +61,14 @@ func New(c *conf.ApiConfig) (*Client, error) {
 		c.NodeType = "vmess"
 	case
 		"vmess",
+		"vless",
 		"trojan",
 		"shadowsocks",
 		"hysteria",
 		"hysteria2",
 		"tuic",
 		"anytls",
-		"xhttp",
-		"vless":
+		"xhttp":
 	default:
 		return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
 	}

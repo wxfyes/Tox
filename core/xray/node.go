@@ -51,7 +51,6 @@ func (c *Xray) addInbound(config *core.InboundHandlerConfig) error {
 		return fmt.Errorf("not an InboundHandler: %s", err)
 	}
 	if err := c.ihm.AddHandler(context.Background(), handler); err != nil {
-		fmt.Printf("FAILED TO ADD HANDLER: %v\n", err)
 		return err
 	}
 	return nil

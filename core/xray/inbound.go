@@ -154,7 +154,7 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 	if nodeInfo.Type == "vless" || nodeInfo.Type == "xhttp" {
 		//Set vless
 		inbound.Protocol = "vless"
-		if config.XrayOptions.EnableFallback {
+		if config.XrayOptions.EnableFallback && nodeInfo.Security != panel.Reality {
 			// Set fallback
 			fallbackConfigs, err := buildVlessFallbacks(config.XrayOptions.FallBackConfigs)
 			if err != nil {
@@ -264,10 +264,6 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 				inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
 					Left: 1, Right: 1, From: 1, To: 1,
 				}
-			}
-			// Compatibility: map "packet" to "packet-up"
-			if inbound.StreamSetting.XHTTPSettings.Mode == "packet" {
-				inbound.StreamSetting.XHTTPSettings.Mode = "packet-up"
 			}
 		}
 	default:

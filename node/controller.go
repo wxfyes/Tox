@@ -53,7 +53,7 @@ func (c *Controller) Start() error {
 		return fmt.Errorf("get user list error: %s", err)
 	}
 	if len(c.userList) == 0 {
-		return errors.New("add users error: not have any user")
+		log.WithField("tag", c.tag).Warn("No users found for this node")
 	}
 	c.aliveMap, err = c.apiClient.GetUserAlive()
 	if err != nil {
