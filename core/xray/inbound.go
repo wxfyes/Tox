@@ -238,9 +238,6 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.XHTTPSettings)
 		}
-		if inbound.StreamSetting.XHTTPSettings == nil || inbound.StreamSetting.XHTTPSettings.Host == "" {
-			_ = json.Unmarshal(nodeInfo.TransportSettings.RawMessage, &inbound.StreamSetting.XHTTPSettings)
-		}
 		// XHTTP in current Xray infra/conf is a wrapper of SplitHTTP
 		// Performance Optimization: Inject default values if not provided
 		if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
