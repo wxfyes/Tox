@@ -191,7 +191,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 	// parse protocol params
 	var cm *CommonNode
 	switch c.NodeType {
-	case "vmess", "vless":
+	case "vmess", "vless", "xhttp":
 		rsp := &VAllssNode{}
 		err = json.Unmarshal(r.Body(), rsp)
 		if err != nil {
