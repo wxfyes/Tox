@@ -40,9 +40,14 @@ jobs:
         run: |
           mkdir -p release
           cp tox release/
-          cp geoip.dat release/ || true
-          cp geosite.dat release/ || true
-          cp config.json release/ || true
+          # 从 example 文件夹拷贝资源文件
+          cp example/geoip.dat release/ || true
+          cp example/geosite.dat release/ || true
+          cp example/config.json release/ || true
+          cp example/dns.json release/ || true
+          cp example/route.json release/ || true
+          cp example/custom_outbound.json release/ || true
+          cp example/custom_inbound.json release/ || true
           cd release
           zip -r ../Tox-linux-${{ matrix.arch_name }}.zip .
 
