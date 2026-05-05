@@ -11,7 +11,7 @@ require (
 	github.com/sagernet/sing v0.8.0-beta.6
 	github.com/sagernet/sing-box v1.13.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.2
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/xtls/xray-core v1.8.25-0.20260327174540-d2758a023cd7
 	golang.org/x/crypto v0.49.0
@@ -228,7 +228,7 @@ require (
 	github.com/softlayer/xmlrpc v0.0.0-20200409220501-5f089df7cb7e // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tailscale/certstore v0.1.1-0.20231202035212-d3fa0460f47e // indirect
