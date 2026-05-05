@@ -107,8 +107,6 @@ func (c *Xray) AddUsers(p *vCore.AddUsersParams) (added int, err error) {
 		users = buildVlessUsers(p.Tag, p.Users, p.VAllss.Flow)
 	case "trojan":
 		users = buildTrojanUsers(p.Tag, p.Users)
-	case "anytls":
-		users = buildAnyTlsUsers(p.Tag, p.Users)
 	case "shadowsocks":
 		users = buildSSUsers(p.Tag,
 			p.Users,

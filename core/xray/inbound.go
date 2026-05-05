@@ -24,7 +24,7 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	var err error
 	var network string
 	switch nodeInfo.Type {
-	case "vmess", "vless":
+	case "vmess", "vless", "xhttp":
 		err = buildV2ray(option, nodeInfo, in)
 		network = nodeInfo.VAllss.Network
 	case "trojan":
@@ -37,11 +37,8 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	case "shadowsocks":
 		err = buildShadowsocks(option, nodeInfo, in)
 		network = "tcp"
-	case "anytls":
-		err = buildAnyTls(option, nodeInfo, in)
-		network = "tcp"
 	default:
-		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks, AnyTLS", nodeInfo.Type)
+		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks", nodeInfo.Type)
 	}
 	if err != nil {
 		return nil, err

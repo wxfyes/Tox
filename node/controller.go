@@ -89,11 +89,7 @@ func (c *Controller) Start() error {
 		NodeInfo: node,
 	})
 	if err != nil {
-		if node.Type == "anytls" {
-			log.Warnf("AnyTLS add users failed, but continuing: %s", err)
-		} else {
-			return fmt.Errorf("add users error: %s", err)
-		}
+		return fmt.Errorf("add users error: %s", err)
 	}
 	log.WithField("tag", c.tag).Infof("Added %d new users", added)
 	c.info = node
