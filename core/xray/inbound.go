@@ -391,11 +391,24 @@ func buildTrojanFallbacks(fallbackConfigs []conf.FallBackConfigForXray) ([]*core
 
 func buildAnyTls(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
 	inbound.Protocol = "anytls"
-	s, err := json.Marshal(nodeInfo.AnyTls)
-	if err != nil {
-		return fmt.Errorf("marshal anytls settings error: %s", err)
+	
+	// 定义 AnyTLS 的配置结构，把密码直接放进去
+	type AnyTlsAccount struct {
+		Password string `json:"password"`
 	}
+	type AnyTlsSettings struct {
+		Users []AnyTlsAccount `json:"users"`
+	}
+	
+	settings := AnyTlsSettings{
+		Users: []AnyTlsAccount{
+			{Password: nodeInfo.Common.ServerName}, // 暂时尝试用 ServerName 或者其他字段
+		},
+	}
+	
+	s, _ := json.Marshal(settings)
 	inbound.Settings = (*json.RawMessage)(&s)
+	
 	network := "tcp"
 	t := coreConf.TransportProtocol(network)
 	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
