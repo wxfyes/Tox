@@ -235,11 +235,13 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 			return fmt.Errorf("unmarshal splithttp settings error: %s", err)
 		}
 	case "xhttp":
-		if len(v.NetworkSettings) > 0 {
-			_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.XHTTPSettings)
+		if inbound.StreamSetting.XHTTPSettings == nil {
+			inbound.StreamSetting.XHTTPSettings = &coreConf.XHTTPSettings{}
 		}
-		// XHTTP in current Xray infra/conf is a wrapper of SplitHTTP
-		// Performance Optimization: Inject default values if not provided
+		if len(v.NetworkSettings) > 0 {
+			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
+		}
+		// Performance Optimization: Inject default values
 		if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
 			inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
 				Left: 10485760, Right: 10485760, From: 10485760, To: 10485760,
