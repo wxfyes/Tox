@@ -65,15 +65,17 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 		TCPFastOpen: tfo,
 	}
 	var multiplex *option.InboundMultiplexOptions
-	if c.SingOptions.Multiplex != nil {
+	if c.SingOptions != nil && c.SingOptions.Multiplex != nil {
 		multiplexOption := option.InboundMultiplexOptions{
 			Enabled: c.SingOptions.Multiplex.Enabled,
 			Padding: c.SingOptions.Multiplex.Padding,
-			Brutal: &option.BrutalOptions{
+		}
+		if c.SingOptions.Multiplex.Brutal != nil {
+			multiplexOption.Brutal = &option.BrutalOptions{
 				Enabled:  c.SingOptions.Multiplex.Brutal.Enabled,
 				UpMbps:   c.SingOptions.Multiplex.Brutal.UpMbps,
 				DownMbps: c.SingOptions.Multiplex.Brutal.DownMbps,
-			},
+			}
 		}
 		multiplex = &multiplexOption
 	}
