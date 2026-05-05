@@ -115,10 +115,15 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	case panel.Reality:
 		// Reality
 		in.StreamSetting.Security = "reality"
+		in.StreamSetting.TLSSettings = nil // Explicitly disable TLS to avoid conflict
 		v := nodeInfo.VAllss
 		dest := v.TlsSettings.Dest
 		if dest == "" {
 			dest = v.TlsSettings.ServerName
+		}
+		serverPort := v.TlsSettings.ServerPort
+		if serverPort == "" {
+			serverPort = "443"
 		}
 		xver := v.TlsSettings.Xver
 		if xver == 0 {
@@ -126,7 +131,7 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 		}
 		mtd, _ := time.ParseDuration(v.RealityConfig.MaxTimeDiff)
 		in.StreamSetting.REALITYSettings = &coreConf.REALITYConfig{
-			Dest:         json.RawMessage([]byte(fmt.Sprintf("\"%s:%s\"", dest, v.TlsSettings.ServerPort))),
+			Dest:         json.RawMessage([]byte(fmt.Sprintf("\"%s:%s\"", dest, serverPort))),
 			Xver:         xver,
 			Show:         false,
 			ServerNames:  []string{v.TlsSettings.ServerName},
