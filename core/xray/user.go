@@ -103,7 +103,7 @@ func (c *Xray) AddUsers(p *vCore.AddUsersParams) (added int, err error) {
 	switch p.NodeInfo.Type {
 	case "vmess":
 		users = buildVmessUsers(p.Tag, p.Users)
-	case "vless":
+	case "vless", "xhttp":
 		users = buildVlessUsers(p.Tag, p.Users, p.VAllss.Flow)
 	case "trojan":
 		users = buildTrojanUsers(p.Tag, p.Users)
