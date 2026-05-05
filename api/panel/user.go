@@ -65,9 +65,6 @@ func (c *Client) GetUserList() ([]UserInfo, error) {
 	c.userEtag = r.Header().Get("ETag")
 	return userlist.Users, nil
 }
-	c.userEtag = r.Header().Get("ETag")
-	return userlist.Users, nil
-}
 
 // GetUserAlive will fetch the alive_ip count for users
 func (c *Client) GetUserAlive() (map[int]int, error) {
