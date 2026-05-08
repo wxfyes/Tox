@@ -268,6 +268,8 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 					From: 10, To: 30,
 				}
 			}
+			// 增加空闲超时到 300s，解决日志里显示的 60s 断连问题
+			inbound.StreamSetting.XHTTPSettings.ScIdleTimeout = 300
 		}
 	default:
 		return errors.New("the network type is not vail")
