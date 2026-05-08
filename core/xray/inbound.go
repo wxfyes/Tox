@@ -117,7 +117,7 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 		in.StreamSetting.Security = "reality"
 		// Set ALPN for Reality, Shadowrocket requires h2
 		in.StreamSetting.TLSSettings = &coreConf.TLSConfig{
-			ALPN: []string{"h2", "http/1.1"},
+			ALPN: &coreConf.StringList{"h2", "http/1.1"},
 		}
 		v := nodeInfo.VAllss
 		dest := v.TlsSettings.Dest
