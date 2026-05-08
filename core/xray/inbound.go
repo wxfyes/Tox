@@ -265,7 +265,14 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 			}
 			if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
 				inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
-					From: 30, To: 50,
+					From: 10, To: 30,
+				}
+			}
+			// 注入高并发配置，解决 YouTube 图片视频加载问题
+			if inbound.StreamSetting.XHTTPSettings.ReuseConfig == nil {
+				inbound.StreamSetting.XHTTPSettings.ReuseConfig = &coreConf.SplitHTTPReuseConfig{
+					MaxConcurrency: &coreConf.Int32Range{From: 64, To: 128},
+					MaxConnections: &coreConf.Int32Range{From: 4, To: 8},
 				}
 			}
 		}
