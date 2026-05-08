@@ -243,37 +243,27 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 			return fmt.Errorf("unmarshal splithttp settings error: %s", err)
 		}
 	case "xhttp":
-		// 终极兼容方案：直接修改输入源 JSON 字节，彻底绕过所有结构体类型限制
-		var settings map[string]interface{}
-		if len(v.NetworkSettings) > 0 {
-			_ = json.Unmarshal(v.NetworkSettings, &settings)
-		}
-		if settings == nil {
-			settings = make(map[string]interface{})
-		}
-
-		// 注入优化参数到原始字节流中
-		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 1572864}
-		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
-		settings["scIdleTimeout"] = 300
-		settings["reuseConfig"] = map[string]interface{}{
-			"maxConcurrency": map[string]interface{}{"from": 64, "to": 128},
-			"maxConnections": map[string]interface{}{"from": 4, "to": 8},
-		}
-		
-		// 将修改后的 JSON 写回，这样核心解析时就能看到这些参数
-		newJson, _ := json.Marshal(settings)
-		v.NetworkSettings = newJson
-
 		if inbound.StreamSetting.XHTTPSettings == nil {
 			inbound.StreamSetting.XHTTPSettings = &coreConf.SplitHTTPConfig{}
 		}
-		_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
-		
-		// 兜底补全 Host/Path
-		if inbound.StreamSetting.XHTTPSettings.Host == "" && inbound.StreamSetting.SplitHTTPSettings != nil {
-			inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
-			inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+		if len(v.NetworkSettings) > 0 {
+			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
+			if inbound.StreamSetting.XHTTPSettings.Host == "" {
+				_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
+				if inbound.StreamSetting.SplitHTTPSettings != nil {
+					inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
+					inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+				}
+			}
+		}
+		// 性能优化：仅保留验证过的包大小和间隔参数
+		if inbound.StreamSetting.XHTTPSettings != nil {
+			inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
+				From: 1024, To: 1572864,
+			}
+			inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
+				From: 10, To: 30,
+			}
 		}
 	default:
 		return errors.New("the network type is not vail")
