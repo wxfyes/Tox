@@ -256,12 +256,12 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 				}
 			}
 		}
-		// 注入优化参数到原始字节流中 (目标 300M+ 多路并行方案)
+		// 注入优化参数到原始字节流中 (1MB 爆发版：秒开感 + 多路并行)
 		settings := make(map[string]interface{})
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, &settings)
 		}
-		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 524288}
+		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 1048576}
 		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
 		settings["scIdleTimeout"] = 60
 		settings["reuseConfig"] = map[string]interface{}{
