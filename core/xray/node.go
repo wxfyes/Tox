@@ -3,6 +3,7 @@ package xray
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/InazumaV/V2bX/api/panel"
 	"github.com/InazumaV/V2bX/conf"
@@ -84,10 +85,13 @@ func (c *Xray) DelNode(tag string) error {
 }
 
 func (c *Xray) removeInbound(tag string) error {
-	return c.ihm.RemoveHandler(context.Background(), tag)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	return c.ihm.RemoveHandler(ctx, tag)
 }
 
 func (c *Xray) removeOutbound(tag string) error {
-	err := c.ohm.RemoveHandler(context.Background(), tag)
-	return err
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	return c.ohm.RemoveHandler(ctx, tag)
 }

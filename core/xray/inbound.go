@@ -115,7 +115,10 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	case panel.Reality:
 		// Reality
 		in.StreamSetting.Security = "reality"
-		in.StreamSetting.TLSSettings = nil // Explicitly disable TLS to avoid conflict
+		// Set ALPN for Reality, Shadowrocket requires h2
+		in.StreamSetting.TLSSettings = &coreConf.TLSConfig{
+			Alpn: []string{"h2", "http/1.1"},
+		}
 		v := nodeInfo.VAllss
 		dest := v.TlsSettings.Dest
 		if dest == "" {
@@ -257,7 +260,7 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if inbound.StreamSetting.XHTTPSettings != nil {
 			if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
 				inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
-					Left: 10485760, Right: 10485760, From: 10485760, To: 10485760,
+					Left: 1048576, Right: 1048576, From: 1048576, To: 1048576,
 				}
 			}
 			if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
