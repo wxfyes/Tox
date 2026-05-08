@@ -256,15 +256,21 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 				}
 			}
 		}
-		// 性能优化：仅保留验证过的包大小和间隔参数
-		if inbound.StreamSetting.XHTTPSettings != nil {
-			inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
-				From: 1024, To: 1572864,
-			}
-			inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
-				From: 10, To: 30,
-			}
+		// 注入优化参数到原始字节流中 (目标 300M+ 多路并行方案)
+		settings := make(map[string]interface{})
+		if len(v.NetworkSettings) > 0 {
+			_ = json.Unmarshal(v.NetworkSettings, &settings)
 		}
+		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 524288}
+		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
+		settings["scIdleTimeout"] = 60
+		settings["reuseConfig"] = map[string]interface{}{
+			"maxConcurrency": map[string]interface{}{"from": 64, "to": 128},
+			"maxConnections": map[string]interface{}{"from": 4, "to": 8},
+		}
+		
+		optimizedJson, _ := json.Marshal(settings)
+		_ = json.Unmarshal(optimizedJson, inbound.StreamSetting.XHTTPSettings)
 	default:
 		return errors.New("the network type is not vail")
 	}
