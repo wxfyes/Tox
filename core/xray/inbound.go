@@ -246,31 +246,27 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if inbound.StreamSetting.XHTTPSettings == nil {
 			inbound.StreamSetting.XHTTPSettings = &coreConf.SplitHTTPConfig{}
 		}
-		if len(v.NetworkSettings) > 0 {
-			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
-			if inbound.StreamSetting.XHTTPSettings.Host == "" {
-				_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
-				if inbound.StreamSetting.SplitHTTPSettings != nil {
-					inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
-					inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
-				}
-			}
-		}
-		// 注入优化参数到原始字节流中 (1MB 爆发版：秒开感 + 多路并行)
+		// 黄金平衡方案：800KB (极其隐蔽) + 10-30ms (极速响应) + 4路并行 (爆发力)
 		settings := make(map[string]interface{})
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, &settings)
 		}
-		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 1048576}
+		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 819200}
 		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
 		settings["scIdleTimeout"] = 60
 		settings["reuseConfig"] = map[string]interface{}{
-			"maxConcurrency": map[string]interface{}{"from": 64, "to": 128},
-			"maxConnections": map[string]interface{}{"from": 4, "to": 8},
+			"maxConcurrency": map[string]interface{}{"from": 32, "to": 64},
+			"maxConnections": map[string]interface{}{"from": 2, "to": 4},
 		}
 		
 		optimizedJson, _ := json.Marshal(settings)
 		_ = json.Unmarshal(optimizedJson, inbound.StreamSetting.XHTTPSettings)
+		
+		// 兜底补全 Host/Path
+		if inbound.StreamSetting.XHTTPSettings.Host == "" && inbound.StreamSetting.SplitHTTPSettings != nil {
+			inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
+			inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
+		}
 	default:
 		return errors.New("the network type is not vail")
 	}
