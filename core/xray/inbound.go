@@ -248,29 +248,29 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		}
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, inbound.StreamSetting.XHTTPSettings)
-			if inbound.StreamSetting.XHTTPSettings.Host == "" {
-				_ = json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.SplitHTTPSettings)
-				if inbound.StreamSetting.SplitHTTPSettings != nil {
-					inbound.StreamSetting.XHTTPSettings.Host = inbound.StreamSetting.SplitHTTPSettings.Host
-					inbound.StreamSetting.XHTTPSettings.Path = inbound.StreamSetting.SplitHTTPSettings.Path
-				}
-			}
 		}
-		// 性能优化：注入包大小和间隔参数 (避开不支持的 ReuseConfig)
-		if inbound.StreamSetting.XHTTPSettings != nil {
-			if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
-				inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
-					From: 1024, To: 1572864,
-				}
-			}
-			if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
-				inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs = coreConf.Int32Range{
-					From: 10, To: 30,
-				}
-			}
-			// 增加空闲超时到 300s，解决日志里显示的 60s 断连问题
-			inbound.StreamSetting.XHTTPSettings.ScIdleTimeout = 300
+		
+		// 终极方案：直接注入 Raw JSON，彻底绕过所有结构体限制和编译报错
+		settings := map[string]interface{}{
+			"host": inbound.StreamSetting.XHTTPSettings.Host,
+			"path": inbound.StreamSetting.XHTTPSettings.Path,
+			"scMaxEachPostBytes": map[string]interface{}{"from": 1024, "to": 1572864},
+			"scMinPostsIntervalMs": map[string]interface{}{"from": 10, "to": 30},
+			"scIdleTimeout": 300,
+			"reuseConfig": map[string]interface{}{
+				"maxConcurrency": map[string]interface{}{"from": 64, "to": 128},
+				"maxConnections": map[string]interface{}{"from": 4, "to": 8},
+			},
 		}
+		// 兜底补全 Host/Path (处理旧版兼容性)
+		if (settings["host"] == "" || settings["host"] == nil) && inbound.StreamSetting.SplitHTTPSettings != nil {
+			settings["host"] = inbound.StreamSetting.SplitHTTPSettings.Host
+			settings["path"] = inbound.StreamSetting.SplitHTTPSettings.Path
+		}
+		
+		jsonData, _ := json.Marshal(settings)
+		inbound.StreamSetting.RawNetworkSettings = (*json.RawMessage)(&jsonData)
+		inbound.StreamSetting.Network = "xhttp"
 	default:
 		return errors.New("the network type is not vail")
 	}
