@@ -260,7 +260,7 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if inbound.StreamSetting.XHTTPSettings != nil {
 			if inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes.From == 0 {
 				inbound.StreamSetting.XHTTPSettings.ScMaxEachPostBytes = coreConf.Int32Range{
-					From: 524288, To: 1572864,
+					From: 1024, To: 1572864,
 				}
 			}
 			if inbound.StreamSetting.XHTTPSettings.ScMinPostsIntervalMs.From == 0 {
