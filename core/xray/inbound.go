@@ -251,6 +251,9 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if len(v.NetworkSettings) > 0 {
 			_ = json.Unmarshal(v.NetworkSettings, &settings)
 		}
+		if settings == nil {
+			settings = make(map[string]interface{})
+		}
 		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 819200}
 		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
 		settings["scIdleTimeout"] = 60
