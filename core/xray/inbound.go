@@ -227,6 +227,10 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if err != nil {
 			return fmt.Errorf("unmarshal ws settings error: %s", err)
 		}
+		if inbound.StreamSetting.WSSettings != nil && inbound.StreamSetting.WSSettings.Headers != nil {
+			delete(inbound.StreamSetting.WSSettings.Headers, "Host")
+			delete(inbound.StreamSetting.WSSettings.Headers, "host")
+		}
 	case "grpc":
 		err := json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.GRPCSettings)
 		if err != nil {
