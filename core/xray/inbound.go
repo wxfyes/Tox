@@ -258,6 +258,8 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 		if settings == nil {
 			settings = make(map[string]interface{})
 		}
+		// 注释掉硬编码参数，避免强制 10-30ms 延迟限制导致大文件下载/YouTube 4K 严重卡顿
+		/*
 		settings["scMaxEachPostBytes"] = map[string]interface{}{"from": 1024, "to": 819200}
 		settings["scMinPostsIntervalMs"] = map[string]interface{}{"from": 10, "to": 30}
 		settings["scIdleTimeout"] = 60
@@ -265,6 +267,7 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 			"maxConcurrency": map[string]interface{}{"from": 32, "to": 64},
 			"maxConnections": map[string]interface{}{"from": 2, "to": 4},
 		}
+		*/
 		
 		optimizedJson, _ := json.Marshal(settings)
 		_ = json.Unmarshal(optimizedJson, inbound.StreamSetting.XHTTPSettings)
