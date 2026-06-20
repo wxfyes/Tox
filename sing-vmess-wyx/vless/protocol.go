@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"log"
 
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
