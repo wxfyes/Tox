@@ -66,10 +66,10 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, source M.
 	flowMatched := false
 	if request.Flow == userFlow {
 		flowMatched = true
-	} else if request.IsPrivate {
-		if request.Flow == FlowVision && userFlow == "mom-vision" {
+	} else {
+		if (request.Flow == FlowVision || request.Flow == "mom-vision") && (userFlow == "mom-vision" || userFlow == FlowVision) {
 			flowMatched = true
-		} else if request.Flow == "" && userFlow == "mom-private" {
+		} else if (request.Flow == "" || request.Flow == "mom-private") && (userFlow == "mom-private" || userFlow == "") {
 			flowMatched = true
 		}
 	}
