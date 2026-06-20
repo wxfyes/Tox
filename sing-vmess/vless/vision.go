@@ -43,9 +43,14 @@ func init() {
 			if t.Kind() == reflect.Pointer {
 				elem := t.Elem()
 				if elem.Kind() == reflect.Struct {
-					_, hasInput := elem.FieldByName("input")
-					_, hasRawInput := elem.FieldByName("rawInput")
-					if hasInput && hasRawInput {
+					inputField, hasInput := elem.FieldByName("input")
+					rawInputField, hasRawInput := elem.FieldByName("rawInput")
+					// Only match if the fields are directly owned by this struct
+					// (Index length == 1). If found via embedded pointer (e.g.
+					// *reality.Conn inside realityConnWrapper), the offset is
+					// relative to the embedded struct, not the wrapper, so
+					// unsafe.Pointer arithmetic would be wrong.
+					if hasInput && hasRawInput && len(inputField.Index) == 1 && len(rawInputField.Index) == 1 {
 						type netConnGetter interface {
 							NetConn() net.Conn
 						}
