@@ -352,7 +352,20 @@ func (c *VisionConn) padding(buffer *buf.Buffer, command byte) *buf.Buffer {
 			paddingLen = 900 - contentLen
 		}
 	}
-	newBuffer := buf.New()
+	var bufferLen int
+	if c.writeUUID {
+		bufferLen += 16
+	}
+	bufferLen += 5
+	if buffer != nil {
+		bufferLen += buffer.Len()
+	}
+	bufferLen += paddingLen
+	newBuffer := buf.NewSize(bufferLen)
+	if c.writeUUID {
+		common.Must1(newBuffer.Write(c.userUUID[:]))
+		c.writeUUID = false
+	}
 	common.Must1(newBuffer.Write([]byte{command, byte(contentLen >> 8), byte(contentLen), byte(paddingLen >> 8), byte(paddingLen)}))
 	if buffer != nil {
 		common.Must1(newBuffer.Write(buffer.Bytes()))

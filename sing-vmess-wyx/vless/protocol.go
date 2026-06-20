@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"log"
 
 	"github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
@@ -62,6 +63,7 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[VLESS DEBUG] Read version=%d, isPrivate=%v, addonsLen=%d", version, isPrivate, addonsLen)
 
 	if addonsLen > 0 {
 		addonsBytes := make([]byte, addonsLen)
@@ -69,12 +71,14 @@ func ReadRequest(reader io.Reader) (*Request, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("[VLESS DEBUG] addonsBytes: %x", addonsBytes)
 
 		addons, err := readAddons(bytes.NewReader(addonsBytes))
 		if err != nil {
 			return nil, err
 		}
 		request.Flow = addons.Flow
+		log.Printf("[VLESS DEBUG] parsed request.Flow: %q", request.Flow)
 	}
 
 	err = binary.Read(reader, binary.BigEndian, &request.Command)

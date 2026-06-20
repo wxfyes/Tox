@@ -91,8 +91,10 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, source M.
 		if err != nil {
 			return E.Cause(err, "initialize vision")
 		}
+		s.logger.Error("[VLESS DEBUG] VISION connection SUCCESSFUL! UUID:", request.UUID, " Flow:", request.Flow)
 	case "", "mom-private":
 		conn = responseConn
+		s.logger.Error("[VLESS DEBUG] PRIVATE connection SUCCESSFUL! UUID:", request.UUID, " Flow:", request.Flow)
 	default:
 		return E.New("unknown flow: ", userFlow)
 	}
