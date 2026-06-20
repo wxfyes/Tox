@@ -63,9 +63,20 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, source M.
 	}
 	ctx = auth.ContextWithUser(ctx, user)
 	userFlow := s.userFlow[user]
+	flowMatched := false
+	if request.Flow == userFlow {
+		flowMatched = true
+	} else if request.IsPrivate {
+		if request.Flow == FlowVision && userFlow == "mom-vision" {
+			flowMatched = true
+		} else if request.Flow == "" && userFlow == "mom-private" {
+			flowMatched = true
+		}
+	}
+
 	if request.Flow == FlowVision && request.Command == vmess.NetworkUDP {
 		return E.New(FlowVision, " flow does not support UDP")
-	} else if request.Flow != userFlow {
+	} else if !flowMatched {
 		return E.New("flow mismatch: expected ", flowName(userFlow), ", but got ", flowName(request.Flow))
 	}
 
@@ -75,12 +86,12 @@ func (s *Service[T]) NewConnection(ctx context.Context, conn net.Conn, source M.
 	}
 	responseConn := &serverConn{ExtendedConn: bufio.NewExtendedConn(conn)}
 	switch userFlow {
-	case FlowVision:
+	case FlowVision, "mom-vision":
 		conn, err = NewVisionConn(responseConn, conn, request.UUID, s.logger)
 		if err != nil {
 			return E.Cause(err, "initialize vision")
 		}
-	case "":
+	case "", "mom-private":
 		conn = responseConn
 	default:
 		return E.New("unknown flow: ", userFlow)
