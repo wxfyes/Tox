@@ -31,19 +31,39 @@ func init() {
 		return true, tlsConn.NetConn(), reflect.TypeOf(tlsConn).Elem(), uintptr(unsafe.Pointer(tlsConn))
 	})
 	tlsRegistry = append(tlsRegistry, func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer uintptr) {
-		type netConnGetter interface {
-			NetConn() net.Conn
+		type upstreamGetter interface {
+			Upstream() any
 		}
-		getter, ok := conn.(netConnGetter)
-		if !ok {
-			return
-		}
-		underlying := getter.NetConn()
-		if underlying == nil {
-			return
-		}
-		if tlsConn, loaded := N.CastReader[*tls.Conn](underlying); loaded {
-			return true, tlsConn.NetConn(), reflect.TypeOf(tlsConn).Elem(), uintptr(unsafe.Pointer(tlsConn))
+		curr := any(conn)
+		for {
+			if curr == nil {
+				break
+			}
+			t := reflect.TypeOf(curr)
+			if t.Kind() == reflect.Pointer {
+				elem := t.Elem()
+				if elem.Kind() == reflect.Struct {
+					_, hasInput := elem.FieldByName("input")
+					_, hasRawInput := elem.FieldByName("rawInput")
+					if hasInput && hasRawInput {
+						type netConnGetter interface {
+							NetConn() net.Conn
+						}
+						var underlying net.Conn
+						if getter, ok := curr.(netConnGetter); ok {
+							underlying = getter.NetConn()
+						} else if nc, ok := curr.(net.Conn); ok {
+							underlying = nc
+						}
+						return true, underlying, elem, reflect.ValueOf(curr).Pointer()
+					}
+				}
+			}
+			if getter, ok := curr.(upstreamGetter); ok {
+				curr = getter.Upstream()
+			} else {
+				break
+			}
 		}
 		return
 	})
