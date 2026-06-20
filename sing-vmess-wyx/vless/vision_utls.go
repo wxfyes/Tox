@@ -24,4 +24,24 @@ func init() {
 		}
 		return
 	})
+	tlsRegistry = append(tlsRegistry, func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer uintptr) {
+		type netConnGetter interface {
+			NetConn() net.Conn
+		}
+		getter, ok := conn.(netConnGetter)
+		if !ok {
+			return
+		}
+		underlying := getter.NetConn()
+		if underlying == nil {
+			return
+		}
+		if uConn, loaded := N.CastReader[*utls.UConn](underlying); loaded {
+			return true, uConn.NetConn(), reflect.TypeOf(uConn.Conn).Elem(), uintptr(unsafe.Pointer(uConn.Conn))
+		}
+		if tlsConn, loaded := N.CastReader[*utls.Conn](underlying); loaded {
+			return true, tlsConn.NetConn(), reflect.TypeOf(tlsConn).Elem(), uintptr(unsafe.Pointer(tlsConn))
+		}
+		return
+	})
 }
