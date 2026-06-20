@@ -304,4 +304,4 @@ replace github.com/sagernet/sing-box v1.13.0 => ./sing-box_mod
 replace github.com/sagernet/quic-go => ./quic-go_mod
 
 replace github.com/sagernet/sing-vmess => ./sing-vmess
-replace github.com/wyx2685/sing-vmess => ./sing-vmess
+replace github.com/wyx2685/sing-vmess => ./sing-vmess-wyx

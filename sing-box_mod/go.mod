@@ -148,4 +148,4 @@ replace github.com/anytls/sing-anytls => github.com/wangn9900/sing-anytls v0.0.0
 replace github.com/sagernet/quic-go => ../quic-go_mod
 
 replace github.com/sagernet/sing-vmess => ../sing-vmess
-replace github.com/wyx2685/sing-vmess => ../sing-vmess
+replace github.com/wyx2685/sing-vmess => ../sing-vmess-wyx
