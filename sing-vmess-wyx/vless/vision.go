@@ -122,6 +122,7 @@ func NewVisionConn(conn net.Conn, tlsConn net.Conn, userUUID [16]byte, logger lo
 	}
 	input, _ := reflectType.FieldByName("input")
 	rawInput, _ := reflectType.FieldByName("rawInput")
+	logger.Info("NewVisionConn matched type: ", reflectType.String(), " input offset: ", input.Offset, " rawInput offset: ", rawInput.Offset, " reflectPointer: ", reflectPointer)
 	return &VisionConn{
 		Conn:     conn,
 		reader:   bufio.NewChunkReader(conn, xrayChunkSize),
