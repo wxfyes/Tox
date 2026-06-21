@@ -35,14 +35,25 @@ type Server struct {
 	h2Server   *http2.Server
 	h2cHandler http.Handler
 	path       string
+	headers    option.HTTPHeader
+	obfuscated bool
 }
 
 func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayGRPCOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
+	serviceName := options.ServiceName
+	var path string
+	if strings.HasPrefix(serviceName, "/") {
+		path = serviceName
+	} else {
+		path = "/" + serviceName + "/Tun"
+	}
 	server := &Server{
-		tlsConfig: tlsConfig,
-		logger:    logger,
-		handler:   handler,
-		path:      "/" + options.ServiceName + "/Tun",
+		tlsConfig:  tlsConfig,
+		logger:     logger,
+		handler:    handler,
+		path:       path,
+		headers:    options.Headers,
+		obfuscated: options.Obfuscated,
 		h2Server: &http2.Server{
 			IdleTimeout: time.Duration(options.IdleTimeout),
 		},
@@ -73,6 +84,29 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad method: ", request.Method))
 		return
 	}
+	if len(s.headers) > 0 {
+		for expectedKey, expectedListable := range s.headers {
+			lowerKey := strings.ToLower(expectedKey)
+			clientValues := request.Header.Values(lowerKey)
+			matched := false
+			for _, expVal := range expectedListable {
+				for _, cliVal := range clientValues {
+					if cliVal == expVal {
+						matched = true
+						break
+					}
+				}
+				if matched {
+					break
+				}
+			}
+			if !matched {
+				s.logger.Warn("gRPC-lite access denied: request missing or incorrect header: " + expectedKey)
+				s.invalidRequest(writer, request, http.StatusNotFound, E.New("not found"))
+				return
+			}
+		}
+	}
 	if ct := request.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/grpc") {
 		s.invalidRequest(writer, request, http.StatusNotFound, E.New("bad content type: ", ct))
 		return
@@ -81,7 +115,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("TE", "trailers")
 	writer.WriteHeader(http.StatusOK)
 	done := make(chan struct{})
-	conn := v2rayhttp.NewHTTP2Wrapper(newGunConn(request.Body, writer, writer.(http.Flusher)))
+	conn := v2rayhttp.NewHTTP2Wrapper(newGunConn(request.Body, writer, writer.(http.Flusher), s.obfuscated))
 	s.handler.NewConnectionEx(request.Context(), conn, sHttp.SourceAddress(request), M.Socksaddr{}, N.OnceClose(func(it error) {
 		close(done)
 	}))

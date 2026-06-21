@@ -18,6 +18,14 @@ import (
 
 // kanged from: https://github.com/Qv2ray/gun-lite
 
+var grpcObfsKey = []byte("MOMclashGRPCObfuscationKey")
+
+func xorInPlace(data []byte, key []byte) {
+	for i := 0; i < len(data); i++ {
+		data[i] ^= key[i%len(key)]
+	}
+}
+
 var _ net.Conn = (*GunConn)(nil)
 
 type GunConn struct {
@@ -28,21 +36,24 @@ type GunConn struct {
 	create        chan struct{}
 	err           error
 	readRemaining int
+	obfuscated    bool
 }
 
-func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunConn {
+func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher, obfuscated bool) *GunConn {
 	return &GunConn{
-		rawReader: reader,
-		reader:    std_bufio.NewReader(reader),
-		writer:    writer,
-		flusher:   flusher,
+		rawReader:  reader,
+		reader:     std_bufio.NewReader(reader),
+		writer:     writer,
+		flusher:    flusher,
+		obfuscated: obfuscated,
 	}
 }
 
-func newLateGunConn(writer io.Writer) *GunConn {
+func newLateGunConn(writer io.Writer, obfuscated bool) *GunConn {
 	return &GunConn{
-		create: make(chan struct{}),
-		writer: writer,
+		create:     make(chan struct{}),
+		writer:     writer,
+		obfuscated: obfuscated,
 	}
 }
 
@@ -74,6 +85,9 @@ func (c *GunConn) read(b []byte) (n int, err error) {
 		}
 		n, err = c.reader.Read(b)
 		c.readRemaining -= n
+		if c.obfuscated && n > 0 {
+			xorInPlace(b[:n], grpcObfsKey)
+		}
 		return
 	}
 
@@ -95,6 +109,9 @@ func (c *GunConn) read(b []byte) (n int, err error) {
 
 	n, err = c.reader.Read(b)
 	c.readRemaining -= n
+	if c.obfuscated && n > 0 {
+		xorInPlace(b[:n], grpcObfsKey)
+	}
 	return
 }
 
@@ -106,7 +123,12 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+len(b)))
 	header[5] = 0x0A
 	binary.PutUvarint(header[6:], uint64(len(b)))
-	common.Must1(buffer.Write(b))
+	payload := make([]byte, len(b))
+	copy(payload, b)
+	if c.obfuscated {
+		xorInPlace(payload, grpcObfsKey)
+	}
+	common.Must1(buffer.Write(payload))
 	_, err = c.writer.Write(buffer.Bytes())
 	if err != nil {
 		return 0, baderror.WrapH2(err)
@@ -121,6 +143,9 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	defer buffer.Release()
 	dataLen := buffer.Len()
 	varLen := varbin.UvarintLen(uint64(dataLen))
+	if c.obfuscated && dataLen > 0 {
+		xorInPlace(buffer.Bytes(), grpcObfsKey)
+	}
 	header := buffer.ExtendHeader(6 + varLen)
 	header[0] = 0x00
 	binary.BigEndian.PutUint32(header[1:5], uint32(1+varLen+dataLen))

@@ -43,6 +43,13 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	} else {
 		host = serverAddr.String()
 	}
+	serviceName := options.ServiceName
+	var path string
+	if strings.HasPrefix(serviceName, "/") {
+		path = serviceName
+	} else {
+		path = "/" + serviceName + "/Tun"
+	}
 	client := &Client{
 		ctx:        ctx,
 		serverAddr: serverAddr,
@@ -55,8 +62,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		url: &url.URL{
 			Scheme:  "https",
 			Host:    serverAddr.String(),
-			Path:    "/" + options.ServiceName + "/Tun",
-			RawPath: "/" + url.PathEscape(options.ServiceName) + "/Tun",
+			Path:    path,
+			RawPath: "/" + url.PathEscape(strings.TrimPrefix(path, "/")),
 		},
 		host: host,
 	}
@@ -79,15 +86,23 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
+	header := defaultClientHeader.Clone()
+	if len(c.options.Headers) > 0 {
+		for k, v := range c.options.Headers {
+			for _, val := range v {
+				header.Add(k, val)
+			}
+		}
+	}
 	request := &http.Request{
 		Method: http.MethodPost,
 		Body:   pipeInReader,
 		URL:    c.url,
-		Header: defaultClientHeader,
+		Header: header,
 		Host:   c.host,
 	}
 	request = request.WithContext(ctx)
-	conn := newLateGunConn(pipeInWriter)
+	conn := newLateGunConn(pipeInWriter, c.options.Obfuscated)
 	go func() {
 		response, err := c.transport.RoundTrip(request)
 		if err != nil {
