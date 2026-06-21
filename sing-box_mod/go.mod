@@ -107,7 +107,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus-community/pro-bing v0.4.0 // indirect
-	github.com/quic-go/qpack v0.5.1 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/refraction-networking/utls v1.8.0 // indirect
 	github.com/safchain/ethtool v0.3.0 // indirect
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
@@ -148,4 +148,5 @@ replace github.com/anytls/sing-anytls => github.com/wangn9900/sing-anytls v0.0.0
 replace github.com/sagernet/quic-go => ../quic-go_mod
 
 replace github.com/sagernet/sing-vmess => ../sing-vmess
+
 replace github.com/wyx2685/sing-vmess => ../sing-vmess-wyx

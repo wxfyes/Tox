@@ -38,7 +38,7 @@ func NewClient(userId string, flow string, logger logger.Logger) (*Client, error
 }
 
 func (c *Client) prepareConn(conn net.Conn, tlsConn net.Conn) (net.Conn, error) {
-	if c.flow == FlowVision {
+	if c.flow == FlowVision || c.flow == "mom-vision" {
 		protocolConn, err := NewVisionConn(conn, tlsConn, c.key, c.logger)
 		if err != nil {
 			return nil, E.Cause(err, "initialize vision")
