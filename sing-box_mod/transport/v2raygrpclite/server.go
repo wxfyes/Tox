@@ -19,6 +19,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
+	badoption "github.com/sagernet/sing/common/json/badoption"
 	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
@@ -35,7 +36,7 @@ type Server struct {
 	h2Server   *http2.Server
 	h2cHandler http.Handler
 	path       string
-	headers    option.HTTPHeader
+	headers    badoption.HTTPHeader
 	obfuscated bool
 }
 
