@@ -42,7 +42,9 @@ type WsNetworkConfig struct {
 }
 
 type GrpcNetworkConfig struct {
-	ServiceName string `json:"serviceName"`
+	ServiceName string            `json:"serviceName"`
+	Headers     map[string]string `json:"headers"`
+	Obfuscated  bool              `json:"obfuscated"`
 }
 
 type HttpupgradeNetworkConfig struct {
@@ -194,8 +196,17 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 					return option.Inbound{}, fmt.Errorf("decode NetworkSettings error: %s", err)
 				}
 			}
+			var headers badoption.HTTPHeader
+			if len(network.Headers) > 0 {
+				headers = make(badoption.HTTPHeader, len(network.Headers))
+				for k, v := range network.Headers {
+					headers[k] = badoption.Listable[string]{v}
+				}
+			}
 			t.GRPCOptions = option.V2RayGRPCOptions{
 				ServiceName: network.ServiceName,
+				Headers:     headers,
+				Obfuscated:  network.Obfuscated,
 			}
 		case "httpupgrade":
 			network := HttpupgradeNetworkConfig{}

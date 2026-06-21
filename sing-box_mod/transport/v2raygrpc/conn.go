@@ -12,18 +12,28 @@ import (
 
 var _ net.Conn = (*GRPCConn)(nil)
 
-type GRPCConn struct {
-	GunService
-	cache []byte
+var grpcObfsKey = []byte("MOMclashGRPCObfuscationKey")
+
+func xorInPlace(data []byte, key []byte) {
+	for i := 0; i < len(data); i++ {
+		data[i] ^= key[i%len(key)]
+	}
 }
 
-func NewGRPCConn(service GunService) *GRPCConn {
+type GRPCConn struct {
+	GunService
+	cache      []byte
+	obfuscated bool
+}
+
+func NewGRPCConn(service GunService, obfuscated bool) *GRPCConn {
 	//nolint:staticcheck
 	if client, isClient := service.(GunService_TunClient); isClient {
 		service = &clientConnWrapper{client}
 	}
 	return &GRPCConn{
 		GunService: service,
+		obfuscated: obfuscated,
 	}
 }
 
@@ -38,6 +48,9 @@ func (c *GRPCConn) Read(b []byte) (n int, err error) {
 	if err != nil {
 		return
 	}
+	if c.obfuscated && len(hunk.Data) > 0 {
+		xorInPlace(hunk.Data, grpcObfsKey)
+	}
 	n = copy(b, hunk.Data)
 	if n < len(hunk.Data) {
 		c.cache = hunk.Data[n:]
@@ -46,7 +59,13 @@ func (c *GRPCConn) Read(b []byte) (n int, err error) {
 }
 
 func (c *GRPCConn) Write(b []byte) (n int, err error) {
-	err = baderror.WrapGRPC(c.Send(&Hunk{Data: b}))
+	dataToSend := b
+	if c.obfuscated {
+		dataToSend = make([]byte, len(b))
+		copy(dataToSend, b)
+		xorInPlace(dataToSend, grpcObfsKey)
+	}
+	err = baderror.WrapGRPC(c.Send(&Hunk{Data: dataToSend}))
 	if err != nil {
 		return
 	}

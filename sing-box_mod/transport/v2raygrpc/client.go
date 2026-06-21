@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	gM "google.golang.org/grpc/metadata"
 )
 
 var _ adapter.V2RayClientTransport = (*Client)(nil)
@@ -32,6 +33,8 @@ type Client struct {
 	dialOptions []grpc.DialOption
 	conn        atomic.Pointer[grpc.ClientConn]
 	connAccess  sync.Mutex
+	headers     option.HTTPHeader
+	obfuscated  bool
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
@@ -71,6 +74,8 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		serverAddr:  serverAddr.String(),
 		serviceName: options.ServiceName,
 		dialOptions: dialOptions,
+		headers:     options.Headers,
+		obfuscated:  options.Obfuscated,
 	}, nil
 }
 
@@ -101,12 +106,19 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	client := NewGunServiceClient(clientConn).(GunServiceCustomNameClient)
 	ctx, cancel := common.ContextWithCancelCause(ctx)
+	if len(c.headers) > 0 {
+		md := make(gM.MD, len(c.headers))
+		for k, v := range c.headers {
+			md[k] = v
+		}
+		ctx = gM.NewOutgoingContext(ctx, md)
+	}
 	stream, err := client.TunCustomName(ctx, c.serviceName)
 	if err != nil {
 		cancel(err)
 		return nil, err
 	}
-	return NewGRPCConn(stream), nil
+	return NewGRPCConn(stream, c.obfuscated), nil
 }
 
 func (c *Client) Close() error {

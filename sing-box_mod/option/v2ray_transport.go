@@ -86,11 +86,13 @@ type V2RayWebsocketOptions struct {
 type V2RayQUICOptions struct{}
 
 type V2RayGRPCOptions struct {
-	ServiceName         string             `json:"service_name,omitempty"`
-	IdleTimeout         badoption.Duration `json:"idle_timeout,omitempty"`
-	PingTimeout         badoption.Duration `json:"ping_timeout,omitempty"`
-	PermitWithoutStream bool               `json:"permit_without_stream,omitempty"`
-	ForceLite           bool               `json:"-"` // for test
+	ServiceName         string               `json:"service_name,omitempty"`
+	Headers             badoption.HTTPHeader `json:"headers,omitempty"`
+	Obfuscated          bool                 `json:"obfuscated,omitempty"`
+	IdleTimeout         badoption.Duration   `json:"idle_timeout,omitempty"`
+	PingTimeout         badoption.Duration   `json:"ping_timeout,omitempty"`
+	PermitWithoutStream bool                 `json:"permit_without_stream,omitempty"`
+	ForceLite           bool                 `json:"-"` // for test
 }
 
 type V2RayHTTPUpgradeOptions struct {
