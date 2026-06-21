@@ -20,9 +20,9 @@ import (
 
 var grpcObfsKey = []byte("MOMclashGRPCObfuscationKey")
 
-func xorInPlace(data []byte, key []byte) {
+func xorInPlace(data []byte, key []byte, offset int) {
 	for i := 0; i < len(data); i++ {
-		data[i] ^= key[i%len(key)]
+		data[i] ^= key[(offset+i)%len(key)]
 	}
 }
 
@@ -36,6 +36,7 @@ type GunConn struct {
 	create        chan struct{}
 	err           error
 	readRemaining int
+	readOffset    int
 	obfuscated    bool
 }
 
@@ -84,10 +85,11 @@ func (c *GunConn) read(b []byte) (n int, err error) {
 			b = b[:c.readRemaining]
 		}
 		n, err = c.reader.Read(b)
-		c.readRemaining -= n
 		if c.obfuscated && n > 0 {
-			xorInPlace(b[:n], grpcObfsKey)
+			xorInPlace(b[:n], grpcObfsKey, c.readOffset)
+			c.readOffset += n
 		}
+		c.readRemaining -= n
 		return
 	}
 
@@ -103,15 +105,17 @@ func (c *GunConn) read(b []byte) (n int, err error) {
 
 	readLen := int(dataLen)
 	c.readRemaining = readLen
+	c.readOffset = 0
 	if len(b) > readLen {
 		b = b[:readLen]
 	}
 
 	n, err = c.reader.Read(b)
-	c.readRemaining -= n
 	if c.obfuscated && n > 0 {
-		xorInPlace(b[:n], grpcObfsKey)
+		xorInPlace(b[:n], grpcObfsKey, c.readOffset)
+		c.readOffset += n
 	}
+	c.readRemaining -= n
 	return
 }
 
@@ -126,7 +130,7 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	payload := make([]byte, len(b))
 	copy(payload, b)
 	if c.obfuscated {
-		xorInPlace(payload, grpcObfsKey)
+		xorInPlace(payload, grpcObfsKey, 0)
 	}
 	common.Must1(buffer.Write(payload))
 	_, err = c.writer.Write(buffer.Bytes())
@@ -144,7 +148,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	dataLen := buffer.Len()
 	varLen := varbin.UvarintLen(uint64(dataLen))
 	if c.obfuscated && dataLen > 0 {
-		xorInPlace(buffer.Bytes(), grpcObfsKey)
+		xorInPlace(buffer.Bytes(), grpcObfsKey, 0)
 	}
 	header := buffer.ExtendHeader(6 + varLen)
 	header[0] = 0x00
