@@ -158,7 +158,8 @@ func (c *RealityServerConfig) Server(conn net.Conn) (Conn, error) {
 }
 
 func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn) (Conn, error) {
-	tlsConn, err := reality.Server(ctx, conn, c.config)
+	fragConn := &FragmentConn{Conn: conn}
+	tlsConn, err := reality.Server(ctx, fragConn, c.config)
 	if err != nil {
 		return nil, err
 	}

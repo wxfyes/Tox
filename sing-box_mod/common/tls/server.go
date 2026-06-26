@@ -2,8 +2,10 @@ package tls
 
 import (
 	"context"
+	"math/rand"
 	"net"
 	"os"
+	"time"
 
 	"github.com/sagernet/sing-box/common/badtls"
 	C "github.com/sagernet/sing-box/constant"
@@ -48,7 +50,8 @@ func NewServerWithOptions(options ServerOptions) (ServerConfig, error) {
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
-	tlsConn, err := aTLS.ServerHandshake(ctx, conn, config)
+	fragConn := &FragmentConn{Conn: conn}
+	tlsConn, err := aTLS.ServerHandshake(ctx, fragConn, config)
 	if err != nil {
 		return nil, err
 	}
@@ -59,4 +62,45 @@ func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (C
 		return nil, err
 	}
 	return tlsConn, nil
+}
+
+type FragmentConn struct {
+	net.Conn
+	state int // 0: init, 1: bypass
+}
+
+func (c *FragmentConn) Write(b []byte) (int, error) {
+	if c.state == 1 {
+		return c.Conn.Write(b)
+	}
+	c.state = 1
+
+	// Check if this is a TLS Handshake message
+	if len(b) > 300 && b[0] == 0x16 && b[1] == 0x03 {
+		// 20% chance to skip fragmentation (mimic normal traffic)
+		if rand.Intn(5) == 0 {
+			return c.Conn.Write(b)
+		}
+
+		splitPos := 200 + rand.Intn(200)
+		if splitPos >= len(b) {
+			splitPos = len(b) / 2
+		}
+
+		n1, err := c.Conn.Write(b[:splitPos])
+		if err != nil {
+			return n1, err
+		}
+
+		// Random delay 1-5ms to prevent TCP coalescing
+		time.Sleep(time.Duration(1+rand.Intn(4)) * time.Millisecond)
+
+		n2, err := c.Conn.Write(b[splitPos:])
+		if err != nil {
+			return n1 + n2, err
+		}
+		return n1 + n2, nil
+	}
+
+	return c.Conn.Write(b)
 }
