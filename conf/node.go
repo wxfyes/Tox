@@ -133,7 +133,7 @@ func (o *Options) UnmarshalJSON(data []byte) error {
 	case "sing":
 		o.SingOptions = NewSingOptions()
 		return json.Unmarshal(data, o.SingOptions)
-	case "hysteria2":
+	case "hysteria2", "mieru":
 		o.RawOptions = data
 		return nil
 	default:

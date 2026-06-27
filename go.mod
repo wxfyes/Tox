@@ -3,6 +3,7 @@ module github.com/InazumaV/V2bX
 go 1.26
 
 require (
+	github.com/enfein/mieru/v3 v3.31.0
 	github.com/beevik/ntp v1.4.4-0.20240716062501-06ef196b89ec
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-acme/lego/v4 v4.17.4
