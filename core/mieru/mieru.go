@@ -604,6 +604,7 @@ func (m *Mieru) AddNode(tag string, info *panel.NodeInfo, config *conf.Options) 
 	m.nodeInfo = info
 	m.config = config
 	m.tag = tag
+	m.running = true
 	m.mu.Unlock()
 
 	return m.applyConfig()
