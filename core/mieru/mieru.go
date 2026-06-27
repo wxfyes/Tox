@@ -125,9 +125,16 @@ func (m *Mieru) applyConfig() error {
 		PacketListenerFactory: MieruListenerFactory{},
 	}
 
-	err := m.server.Store(config)
+	err = m.server.Store(config)
 	if err != nil {
 		return fmt.Errorf("failed to store config: %w", err)
+	}
+
+	if m.running && !m.server.IsRunning() && len(users) > 0 {
+		if err = m.server.Start(); err != nil {
+			return fmt.Errorf("failed to start server: %w", err)
+		}
+		go m.acceptLoop()
 	}
 
 	return nil
@@ -137,6 +144,17 @@ func (m *Mieru) Start() error {
 	m.mu.Lock()
 	m.running = true
 	m.mu.Unlock()
+
+	hasUsers := false
+	m.uidMap.Range(func(key, value any) bool {
+		hasUsers = true
+		return false
+	})
+
+	if !hasUsers {
+		// 没有用户时延迟启动，待 AddUsers 拉取用户后在 applyConfig 中自动触发热启动
+		return nil
+	}
 
 	if err := m.server.Start(); err != nil {
 		return err
