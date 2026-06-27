@@ -13,8 +13,11 @@ import (
 	"time"
 
 	"github.com/InazumaV/V2bX/api/panel"
+	"github.com/InazumaV/V2bX/common/format"
+	"github.com/InazumaV/V2bX/common/rate"
 	"github.com/InazumaV/V2bX/conf"
 	vCore "github.com/InazumaV/V2bX/core"
+	"github.com/InazumaV/V2bX/limiter"
 
 	mierucommon "github.com/enfein/mieru/v3/apis/common"
 	mieruconstant "github.com/enfein/mieru/v3/apis/constant"
@@ -26,6 +29,7 @@ import (
 	mierucommonpkg "github.com/enfein/mieru/v3/pkg/common"
 	mieruprotocol "github.com/enfein/mieru/v3/pkg/protocol"
 	mierutrafficpattern "github.com/enfein/mieru/v3/apis/trafficpattern"
+	"github.com/juju/ratelimit"
 )
 
 var _ vCore.Core = (*Mieru)(nil)
@@ -305,18 +309,6 @@ func (m *Mieru) accept() (net.Conn, *mierumodel.Request, error) {
 func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 	defer conn.Close()
 
-	resp := &mierumodel.Response{
-		Reply: mieruconstant.Socks5ReplySuccess,
-		BindAddr: mierumodel.AddrSpec{
-			IP:   net.IPv4zero,
-			Port: 0,
-		},
-	}
-	if err := resp.WriteToSocks5(conn); err != nil {
-		stdlog.Printf("[Mieru] failed to write Socks5 response: %v", err)
-		return
-	}
-
 	var username string
 	if uCtx, ok := conn.(mierucommon.UserContext); ok {
 		username = uCtx.UserName()
@@ -339,6 +331,23 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 		}
 		destAddr := net.JoinHostPort(destHost, fmt.Sprintf("%d", req.DstAddr.Port))
 
+		// Check limiter for device online report, speed limit and device limit
+		limiterObj, err := limiter.GetLimiter(m.tag)
+		var limitBucket *ratelimit.Bucket
+		if err == nil {
+			clientIP, _, splitErr := net.SplitHostPort(conn.RemoteAddr().String())
+			if splitErr != nil {
+				clientIP = conn.RemoteAddr().String()
+			}
+			taguuid := format.UserTag(m.tag, username)
+			bucket, reject := limiterObj.CheckLimit(taguuid, clientIP, true, true)
+			if reject {
+				stdlog.Printf("[Mieru] connection rejected by limiter (device limit or speed limit) for user %s from ip %s", username, clientIP)
+				return
+			}
+			limitBucket = bucket
+		}
+
 		remoteConn, err := net.DialTimeout("tcp", destAddr, 10*time.Second)
 		if err != nil {
 			stdlog.Printf("[Mieru] failed to dial destination %s: %v", destAddr, err)
@@ -346,9 +355,53 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 		}
 		defer remoteConn.Close()
 
-		m.bridgeTCP(conn, remoteConn, username)
+		resp := &mierumodel.Response{
+			Reply: mieruconstant.Socks5ReplySuccess,
+			BindAddr: mierumodel.AddrSpec{
+				IP:   net.IPv4zero,
+				Port: 0,
+			},
+		}
+		if err := resp.WriteToSocks5(conn); err != nil {
+			stdlog.Printf("[Mieru] failed to write Socks5 response: %v", err)
+			return
+		}
+
+		var clientConn net.Conn = conn
+		if limitBucket != nil {
+			clientConn = rate.NewConnRateLimiter(conn, limitBucket)
+		}
+
+		m.bridgeTCP(clientConn, remoteConn, username)
 
 	case mieruconstant.Socks5UDPAssociateCmd:
+		// Check limiter for device online report and device limit
+		limiterObj, err := limiter.GetLimiter(m.tag)
+		if err == nil {
+			clientIP, _, splitErr := net.SplitHostPort(conn.RemoteAddr().String())
+			if splitErr != nil {
+				clientIP = conn.RemoteAddr().String()
+			}
+			taguuid := format.UserTag(m.tag, username)
+			_, reject := limiterObj.CheckLimit(taguuid, clientIP, false, true)
+			if reject {
+				stdlog.Printf("[Mieru] UDP connection rejected by limiter for user %s from ip %s", username, clientIP)
+				return
+			}
+		}
+
+		resp := &mierumodel.Response{
+			Reply: mieruconstant.Socks5ReplySuccess,
+			BindAddr: mierumodel.AddrSpec{
+				IP:   net.IPv4zero,
+				Port: 0,
+			},
+		}
+		if err := resp.WriteToSocks5(conn); err != nil {
+			stdlog.Printf("[Mieru] failed to write Socks5 response: %v", err)
+			return
+		}
+
 		m.bridgeUDP(conn, username)
 	default:
 		stdlog.Printf("[Mieru] unsupported command type: %d", req.Command)
