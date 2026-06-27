@@ -432,6 +432,8 @@ func getInboundOptions(tag string, info *panel.NodeInfo, c *conf.Options) (optio
 				TLS: &tls,
 			},
 		}
+	default:
+		return option.Inbound{}, fmt.Errorf("protocol %s is not supported by Sing core, please check your config.json cores settings", info.Type)
 	}
 	return in, nil
 }
