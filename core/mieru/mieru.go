@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	stdlog "log"
 	"net"
 	"strconv"
 	"sync"
@@ -18,9 +19,13 @@ import (
 	mierucommon "github.com/enfein/mieru/v3/apis/common"
 	mieruconstant "github.com/enfein/mieru/v3/apis/constant"
 	mierumodel "github.com/enfein/mieru/v3/apis/model"
-	mieruserver "github.com/enfein/mieru/v3/apis/server"
 	mierupb "github.com/enfein/mieru/v3/pkg/appctl/appctlpb"
 	"google.golang.org/protobuf/proto"
+
+	mieruappcommon "github.com/enfein/mieru/v3/pkg/appctl/appctlcommon"
+	mierucommonpkg "github.com/enfein/mieru/v3/pkg/common"
+	mieruprotocol "github.com/enfein/mieru/v3/pkg/protocol"
+	mierutrafficpattern "github.com/enfein/mieru/v3/apis/trafficpattern"
 )
 
 var _ vCore.Core = (*Mieru)(nil)
@@ -30,14 +35,42 @@ type UserTraffic struct {
 	Download atomic.Int64
 }
 
+type connSet struct {
+	mu    sync.Mutex
+	conns map[net.Conn]struct{}
+}
+
+func (s *connSet) Add(c net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.conns[c] = struct{}{}
+}
+
+func (s *connSet) Remove(c net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.conns, c)
+}
+
+func (s *connSet) CloseAll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.conns {
+		_ = c.Close()
+	}
+	s.conns = make(map[net.Conn]struct{})
+}
+
 type Mieru struct {
 	mu          sync.Mutex
-	server      mieruserver.Server
+	mux         *mieruprotocol.Mux
 	running     bool
+	started     bool
 	nodeInfo    *panel.NodeInfo
 	config      *conf.Options
 	trafficMap  sync.Map // uuid (string) -> *UserTraffic
 	uidMap      sync.Map // uuid (string) -> int (userId)
+	userConns   sync.Map // uuid (string) -> *connSet
 	tag         string
 }
 
@@ -59,9 +92,10 @@ func init() {
 
 func New(c *conf.CoreConfig) (vCore.Core, error) {
 	return &Mieru{
-		server:     mieruserver.NewServer(),
+		mux:        mieruprotocol.NewMux(false),
 		trafficMap: sync.Map{},
 		uidMap:     sync.Map{},
+		userConns:  sync.Map{},
 	}, nil
 }
 
@@ -117,30 +151,48 @@ func (m *Mieru) applyConfig() error {
 	})
 
 	if len(users) == 0 {
-		if m.server.IsRunning() {
-			_ = m.server.Stop()
+		if m.started {
+			stdlog.Printf("[Mieru] no users remaining, closing mux listener")
+			_ = m.mux.Close()
+			m.started = false
+			m.mux = mieruprotocol.NewMux(false)
 		}
 		return nil
 	}
 
-	config := &mieruserver.ServerConfig{
-		Config: &mierupb.ServerConfig{
-			PortBindings: portBindings,
-			Users:        users,
-		},
-		StreamListenerFactory: MieruListenerFactory{},
-		PacketListenerFactory: MieruListenerFactory{},
-	}
+	// 1. 设置用户
+	m.mux.SetServerUsers(mieruappcommon.UserListToMap(users))
+	stdlog.Printf("[Mieru] updated server users count: %d", len(users))
 
-	err := m.server.Store(config)
+	// 2. 设置端点
+	mtu := mierucommonpkg.DefaultMTU
+	endpoints, err := mieruappcommon.PortBindingsToUnderlayProperties(portBindings, mtu)
 	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
+		stdlog.Printf("[Mieru] failed to parse port bindings: %v", err)
+		return fmt.Errorf("failed to get underlay properties: %w", err)
 	}
+	m.mux.SetEndpoints(endpoints)
 
-	if m.running && !m.server.IsRunning() && len(users) > 0 {
-		if err := m.server.Start(); err != nil {
-			return fmt.Errorf("failed to start server: %w", err)
+	// 3. 设置 traffic pattern
+	trafficPattern, err := mierutrafficpattern.NewConfig(nil)
+	if err != nil {
+		stdlog.Printf("[Mieru] failed to create traffic pattern config: %v", err)
+		return fmt.Errorf("failed to new traffic pattern config: %w", err)
+	}
+	m.mux.SetTrafficPattern(trafficPattern)
+	m.mux.SetServerUserHintIsMandatory(false)
+	m.mux.SetStreamListenerFactory(MieruListenerFactory{})
+	m.mux.SetPacketListenerFactory(MieruListenerFactory{})
+
+	// 4. 检查是否需要启动
+	if m.running && !m.started && len(users) > 0 {
+		stdlog.Printf("[Mieru] starting mux on endpoints: %v", portBindings)
+		if err := m.mux.Start(); err != nil {
+			stdlog.Printf("[Mieru] failed to start mux on port bindings: %v", err)
+			return fmt.Errorf("failed to start mux: %w", err)
 		}
+		m.started = true
+		stdlog.Printf("[Mieru] mux started successfully, launching accept loop")
 		go m.acceptLoop()
 	}
 
@@ -159,25 +211,38 @@ func (m *Mieru) Start() error {
 	})
 
 	if !hasUsers {
-		// 没有用户时延迟启动，待 AddUsers 拉取用户后在 applyConfig 中自动触发热启动
+		stdlog.Printf("[Mieru] no users configured, delaying mux start until users are added")
 		return nil
 	}
 
-	if err := m.server.Start(); err != nil {
-		return err
-	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	go m.acceptLoop()
+	if !m.started {
+		stdlog.Printf("[Mieru] starting mux in Start()...")
+		if err := m.mux.Start(); err != nil {
+			stdlog.Printf("[Mieru] failed to start mux in Start(): %v", err)
+			return err
+		}
+		m.started = true
+		stdlog.Printf("[Mieru] mux started successfully, launching accept loop")
+		go m.acceptLoop()
+	}
 	return nil
 }
 
 func (m *Mieru) Close() error {
 	m.mu.Lock()
 	m.running = false
+	started := m.started
+	m.started = false
 	m.mu.Unlock()
 
-	if m.server.IsRunning() {
-		return m.server.Stop()
+	if started && m.mux != nil {
+		stdlog.Printf("[Mieru] closing mux listener because node is removed or stopped")
+		err := m.mux.Close()
+		m.mux = mieruprotocol.NewMux(false)
+		return err
 	}
 	return nil
 }
@@ -191,17 +256,50 @@ func (m *Mieru) acceptLoop() {
 			break
 		}
 
-		conn, req, err := m.server.Accept()
+		conn, req, err := m.accept()
 		if err != nil {
+			m.mu.Lock()
+			running = m.running
+			m.mu.Unlock()
 			if !running {
 				break
 			}
+			stdlog.Printf("[Mieru] accept or handshake error: %v", err)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
 		go m.handleConnection(conn, req)
 	}
+}
+
+func (m *Mieru) accept() (net.Conn, *mierumodel.Request, error) {
+	m.mu.Lock()
+	mux := m.mux
+	m.mu.Unlock()
+	if mux == nil {
+		return nil, nil, fmt.Errorf("mux is nil")
+	}
+
+	conn, err := mux.Accept()
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, ok := conn.(mierucommon.UserContext); !ok {
+		conn.Close()
+		return nil, nil, fmt.Errorf("connection doesn't implement UserContext interface")
+	}
+
+	mierucommonpkg.SetReadTimeout(conn, 10*time.Second)
+	defer func() {
+		mierucommonpkg.SetReadTimeout(conn, 0)
+	}()
+	req := &mierumodel.Request{}
+	if err := req.ReadFromSocks5(conn); err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+	return conn, req, nil
 }
 
 func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
@@ -215,6 +313,7 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 		},
 	}
 	if err := resp.WriteToSocks5(conn); err != nil {
+		stdlog.Printf("[Mieru] failed to write Socks5 response: %v", err)
 		return
 	}
 
@@ -223,6 +322,7 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 		username = uCtx.UserName()
 	}
 	if username == "" {
+		stdlog.Printf("[Mieru] connection doesn't have a valid username context")
 		return
 	}
 
@@ -234,12 +334,14 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 		} else if req.DstAddr.IP != nil {
 			destHost = req.DstAddr.IP.String()
 		} else {
+			stdlog.Printf("[Mieru] connection destination address is invalid")
 			return
 		}
 		destAddr := net.JoinHostPort(destHost, fmt.Sprintf("%d", req.DstAddr.Port))
 
 		remoteConn, err := net.DialTimeout("tcp", destAddr, 10*time.Second)
 		if err != nil {
+			stdlog.Printf("[Mieru] failed to dial destination %s: %v", destAddr, err)
 			return
 		}
 		defer remoteConn.Close()
@@ -248,6 +350,8 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 
 	case mieruconstant.Socks5UDPAssociateCmd:
 		m.bridgeUDP(conn, username)
+	default:
+		stdlog.Printf("[Mieru] unsupported command type: %d", req.Command)
 	}
 }
 
@@ -267,6 +371,15 @@ func (w *countedWriter) Write(p []byte) (int, error) {
 func (m *Mieru) bridgeTCP(client, remote net.Conn, username string) {
 	counterVal, _ := m.trafficMap.LoadOrStore(username, &UserTraffic{})
 	uCounter := counterVal.(*UserTraffic)
+
+	csVal, _ := m.userConns.LoadOrStore(username, &connSet{conns: make(map[net.Conn]struct{})})
+	cs := csVal.(*connSet)
+	cs.Add(client)
+	cs.Add(remote)
+	defer func() {
+		cs.Remove(client)
+		cs.Remove(remote)
+	}()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -371,9 +484,17 @@ func (m *Mieru) bridgeUDP(conn net.Conn, username string) {
 
 	localUdpConn, err := net.ListenPacket("udp", ":0")
 	if err != nil {
+		stdlog.Printf("[Mieru] bridgeUDP: failed to listen local UDP packet conn: %v", err)
 		return
 	}
 	defer localUdpConn.Close()
+
+	csVal, _ := m.userConns.LoadOrStore(username, &connSet{conns: make(map[net.Conn]struct{})})
+	cs := csVal.(*connSet)
+	cs.Add(conn)
+	defer func() {
+		cs.Remove(conn)
+	}()
 
 	counterVal, _ := m.trafficMap.LoadOrStore(username, &UserTraffic{})
 	uCounter := counterVal.(*UserTraffic)
@@ -454,6 +575,11 @@ func (m *Mieru) DelUsers(users []panel.UserInfo, tag string, info *panel.NodeInf
 	for _, user := range users {
 		m.uidMap.Delete(user.Uuid)
 		m.trafficMap.Delete(user.Uuid)
+		if val, ok := m.userConns.LoadAndDelete(user.Uuid); ok {
+			stdlog.Printf("[Mieru] user %s is deleted (over-traffic), active connections will be terminated", user.Uuid)
+			cs := val.(*connSet)
+			cs.CloseAll()
+		}
 	}
 	return m.applyConfig()
 }
