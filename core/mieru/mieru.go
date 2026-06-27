@@ -125,13 +125,13 @@ func (m *Mieru) applyConfig() error {
 		PacketListenerFactory: MieruListenerFactory{},
 	}
 
-	err = m.server.Store(config)
+	err := m.server.Store(config)
 	if err != nil {
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
 	if m.running && !m.server.IsRunning() && len(users) > 0 {
-		if err = m.server.Start(); err != nil {
+		if err := m.server.Start(); err != nil {
 			return fmt.Errorf("failed to start server: %w", err)
 		}
 		go m.acceptLoop()
