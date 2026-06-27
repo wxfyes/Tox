@@ -350,8 +350,12 @@ func (m *Mieru) handleConnection(conn net.Conn, req *mierumodel.Request) {
 
 		remoteConn, err := net.DialTimeout("tcp", destAddr, 10*time.Second)
 		if err != nil {
-			stdlog.Printf("[Mieru] failed to dial destination %s: %v", destAddr, err)
-			return
+			// Auto fallback to tcp4 (IPv4 only) dial if double-stack dial fails
+			remoteConn, err = net.DialTimeout("tcp4", destAddr, 10*time.Second)
+			if err != nil {
+				stdlog.Printf("[Mieru] failed to dial destination %s: %v", destAddr, err)
+				return
+			}
 		}
 		defer remoteConn.Close()
 
