@@ -104,3 +104,17 @@ func (c *FragmentConn) Write(b []byte) (int, error) {
 
 	return c.Conn.Write(b)
 }
+
+func (c *FragmentConn) CloseWrite() error {
+	if tcpConn, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return tcpConn.CloseWrite()
+	}
+	return nil
+}
+
+func (c *FragmentConn) CloseRead() error {
+	if tcpConn, ok := c.Conn.(interface{ CloseRead() error }); ok {
+		return tcpConn.CloseRead()
+	}
+	return nil
+}
