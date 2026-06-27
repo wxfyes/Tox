@@ -116,6 +116,13 @@ func (m *Mieru) applyConfig() error {
 		return true
 	})
 
+	if len(users) == 0 {
+		if m.server.IsRunning() {
+			_ = m.server.Stop()
+		}
+		return nil
+	}
+
 	config := &mieruserver.ServerConfig{
 		Config: &mierupb.ServerConfig{
 			PortBindings: portBindings,
