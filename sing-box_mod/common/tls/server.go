@@ -2,7 +2,7 @@ package tls
 
 import (
 	"context"
-	"math/rand"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -47,11 +47,63 @@ func NewServerWithOptions(options ServerOptions) (ServerConfig, error) {
 	return NewSTDServer(options.Context, options.Logger, options.Options)
 }
 
+type SniffConn struct {
+	net.Conn
+	peeked []byte
+}
+
+func (c *SniffConn) Read(b []byte) (n int, err error) {
+	if len(c.peeked) > 0 {
+		n = copy(b, c.peeked)
+		c.peeked = c.peeked[n:]
+		return n, nil
+	}
+	return c.Conn.Read(b)
+}
+
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {
+	// Sniff the first 5 bytes to detect plain HTTP or random scans
+	var peeked [5]byte
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	n, err := io.ReadFull(conn, peeked[:])
+	conn.SetReadDeadline(time.Time{}) // Clear deadline
+
+	if err != nil {
+		return nil, err
+	}
+
+	// TLS ClientHello always starts with 0x16 0x03 (TLS Handshake, TLS Version 3.x)
+	isTLS := n >= 2 && peeked[0] == 0x16 && peeked[1] == 0x03
+
+	if !isTLS {
+		// Non-TLS probe (plain HTTP or random scanner). Mimic Nginx 400 Bad Request
+		dateStr := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+		response := "HTTP/1.1 400 Bad Request\r\n" +
+			"Server: nginx\r\n" +
+			"Date: " + dateStr + "\r\n" +
+			"Content-Type: text/html\r\n" +
+			"Content-Length: 150\r\n" +
+			"Connection: close\r\n\r\n" +
+			"<html>\r\n" +
+			"<head><title>400 Bad Request</title></head>\r\n" +
+			"<body>\r\n" +
+			"<center><h1>400 Bad Request</h1></center>\r\n" +
+			"<hr><center>nginx</center>\r\n" +
+			"</body>\r\n" +
+			"</html>\r\n"
+		_, _ = conn.Write([]byte(response))
+		_ = conn.Close()
+		return nil, os.ErrInvalid
+	}
+
+	sniffConn := &SniffConn{
+		Conn:   conn,
+		peeked: peeked[:n],
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 	defer cancel()
-	fragConn := &FragmentConn{Conn: conn}
-	tlsConn, err := aTLS.ServerHandshake(ctx, fragConn, config)
+	tlsConn, err := aTLS.ServerHandshake(ctx, sniffConn, config)
 	if err != nil {
 		return nil, err
 	}
@@ -62,59 +114,4 @@ func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (C
 		return nil, err
 	}
 	return tlsConn, nil
-}
-
-type FragmentConn struct {
-	net.Conn
-	state int // 0: init, 1: bypass
-}
-
-func (c *FragmentConn) Write(b []byte) (int, error) {
-	if c.state == 1 {
-		return c.Conn.Write(b)
-	}
-	c.state = 1
-
-	// Check if this is a TLS Handshake message
-	if len(b) > 300 && b[0] == 0x16 && b[1] == 0x03 {
-		// 20% chance to skip fragmentation (mimic normal traffic)
-		if rand.Intn(5) == 0 {
-			return c.Conn.Write(b)
-		}
-
-		splitPos := 200 + rand.Intn(200)
-		if splitPos >= len(b) {
-			splitPos = len(b) / 2
-		}
-
-		n1, err := c.Conn.Write(b[:splitPos])
-		if err != nil {
-			return n1, err
-		}
-
-		// Random delay 1-5ms to prevent TCP coalescing
-		time.Sleep(time.Duration(1+rand.Intn(4)) * time.Millisecond)
-
-		n2, err := c.Conn.Write(b[splitPos:])
-		if err != nil {
-			return n1 + n2, err
-		}
-		return n1 + n2, nil
-	}
-
-	return c.Conn.Write(b)
-}
-
-func (c *FragmentConn) CloseWrite() error {
-	if tcpConn, ok := c.Conn.(interface{ CloseWrite() error }); ok {
-		return tcpConn.CloseWrite()
-	}
-	return nil
-}
-
-func (c *FragmentConn) CloseRead() error {
-	if tcpConn, ok := c.Conn.(interface{ CloseRead() error }); ok {
-		return tcpConn.CloseRead()
-	}
-	return nil
 }
