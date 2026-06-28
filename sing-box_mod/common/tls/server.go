@@ -61,6 +61,20 @@ func (c *SniffConn) Read(b []byte) (n int, err error) {
 	return c.Conn.Read(b)
 }
 
+func (c *SniffConn) CloseWrite() error {
+	if tcpConn, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return tcpConn.CloseWrite()
+	}
+	return nil
+}
+
+func (c *SniffConn) CloseRead() error {
+	if tcpConn, ok := c.Conn.(interface{ CloseRead() error }); ok {
+		return tcpConn.CloseRead()
+	}
+	return nil
+}
+
 func ServerHandshake(ctx context.Context, conn net.Conn, config ServerConfig) (Conn, error) {
 	// Sniff the first 5 bytes to detect plain HTTP or random scans
 	var peeked [5]byte
