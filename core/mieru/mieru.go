@@ -268,7 +268,8 @@ func (m *Mieru) acceptLoop() {
 			if !running {
 				break
 			}
-			stdlog.Printf("[Mieru] accept or handshake error: %v", err)
+			// 🛡️ 静默处理握手或连接异常，防止 GFW 狂暴探测/重放攻击产生日志暴雨导致 VPS 内存溢出或 I/O 假死
+			// stdlog.Printf("[Mieru] accept or handshake error: %v", err)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
